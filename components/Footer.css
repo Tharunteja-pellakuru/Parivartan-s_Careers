@@ -1,0 +1,44 @@
+.footer {
+  margin-top: 3rem;
+  padding: 1.5rem 1rem;
+  background: #f5f5f5;
+  font-size: 0.9rem;
+}
+
+.footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  width: 1300px;
+  margin: 0 auto;
+  max-width: 96%;
+}
+
+.footer-column {
+  flex: 1;
+  min-width: 200px;
+  text-align: left;
+  font-family: "Caveat", cursive;
+  color: #000;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.footer-column-2 {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.footer-column-2 a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.footer-column-2 a:hover {
+  transform: translateY(-2px);
+}
