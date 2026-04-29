@@ -1,14 +1,20 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import FavIcon from "../../assets/fav-icon.png";
+import { BASE_URL } from "../../constants";
 
 const LoginPage = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     remember: false,
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -17,16 +23,55 @@ const LoginPage = () => {
       ...formData,
       [name]: type === "checkbox" ? checked : value,
     });
+    // Clear error when user starts typing
+    setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setSuccess("");
+    setLoading(true);
 
-    console.log("Login Data:", formData);
+    try {
+      const response = await fetch(`${BASE_URL}/api/admin/login`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
-    // TODO:
-    // Call your API here
-    // loginAdmin(formData)
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      setSuccess("Login successful! Redirecting...");
+      console.log("Login Response:", data);
+
+      // Store user data in localStorage (optional)
+      localStorage.setItem("user", JSON.stringify({
+        userId: data.userId,
+        fullName: data.fullName,
+        email: data.email,
+      }));
+
+      // Redirect to Dashboard
+      setTimeout(() => {
+        navigate("/admin/dashboard");
+      }, 1500);
+    } catch (err) {
+      setError(err.message || "An error occurred during login");
+      console.error("Login Error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -54,6 +99,19 @@ Admin Portal            </h2>
             onSubmit={handleSubmit}
             className="space-y-6"
           >
+            {/* Error Alert */}
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Success Alert */}
+            {success && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
+                {success}
+              </div>
+            )}
             {/* Email */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -89,44 +147,43 @@ Admin Portal            </h2>
                 Password
               </label>
 
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                required
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                className="
-                  w-full
-                  pl-4
-                  pr-12
-                  py-3
-                  bg-slate-50
-                  border
-                  border-slate-200
-                  rounded-xl
-                  focus:ring-2
-                  focus:ring-green-100
-                  focus:border-[#76c74b]
-                  outline-none
-                "
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  required
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="
+                    w-full
+                    pl-4
+                    pr-12
+                    py-3
+                    bg-slate-50
+                    border
+                    border-slate-200
+                    rounded-xl
+                    focus:ring-2
+                    focus:ring-green-100
+                    focus:border-[#76c74b]
+                    outline-none
+                  "
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
-            </div>
-
-
 
             {/* Submit */}
             <button
               type="submit"
+              disabled={loading}
               className="
                 w-full
                 py-4
@@ -142,9 +199,11 @@ Admin Portal            </h2>
                 focus:ring-4
                 focus:ring-green-100
                 transition-all
+                disabled:opacity-50
+                disabled:cursor-not-allowed
               "
             >
-              Sign In
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
         </section>

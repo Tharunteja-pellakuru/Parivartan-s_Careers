@@ -74,6 +74,7 @@ const Settings = () => {
               <input 
                 type="password" 
                 placeholder="••••••••"
+                required
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-[#73BF44]/20 focus:bg-white transition-all text-sm font-normal"
               />
             </div>
@@ -83,6 +84,7 @@ const Settings = () => {
                 <input 
                   type="password" 
                   placeholder="••••••••"
+                  required
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-[#73BF44]/20 focus:bg-white transition-all text-sm font-normal"
                 />
               </div>
@@ -91,6 +93,7 @@ const Settings = () => {
                 <input 
                   type="password" 
                   placeholder="••••••••"
+                  required
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-[#73BF44]/20 focus:bg-white transition-all text-sm font-normal"
                 />
               </div>
