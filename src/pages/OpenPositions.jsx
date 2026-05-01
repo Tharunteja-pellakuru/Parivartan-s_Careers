@@ -32,15 +32,21 @@ const OpenPositions = () => {
   const fetchJobs = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${BASE_URL}/jobs`);
+      const response = await fetch(`${BASE_URL}/api/jobs`);
       const data = await response.json();
-      const validJobs = Array.isArray(data) ? data : data.jobs || [];
-      const openJobs = validJobs.filter(
-        (job) => job.details.status?.toLowerCase() !== "closed",
-      );
-      setJobsList(openJobs);
-      setError(null);
+      
+      if (data.success) {
+        // Only show Published jobs to candidates
+        const openJobs = data.data.filter(
+          (job) => job.status === "Published"
+        );
+        setJobsList(openJobs);
+        setError(null);
+      } else {
+        throw new Error("Failed to fetch");
+      }
     } catch (err) {
+      console.error("Error fetching jobs:", err);
       setJobsList([]);
       setError(true);
     } finally {
@@ -64,14 +70,11 @@ const OpenPositions = () => {
     setCurrentPage(1);
   }, [filter, searchQuery]);
 
-  // Ensure jobsList is an array before filtering
-  const safeJobsList = Array.isArray(jobsList) ? jobsList : [];
-
   // Apply department filter
   const departmentFilteredJobs =
     filter === "All"
-      ? safeJobsList
-      : safeJobsList.filter((job) => job.details?.department === filter);
+      ? jobsList
+      : jobsList.filter((job) => job.department === filter);
 
   // Apply search filter
   const filteredJobs = departmentFilteredJobs.filter((job) => {
@@ -79,13 +82,16 @@ const OpenPositions = () => {
 
     const query = searchQuery.toLowerCase();
     const jobTitle = job.job_title?.toLowerCase() || "";
-    const department = job.details?.department?.toLowerCase() || "";
-    const location = job.details?.location?.toLowerCase() || "";
-    const type = job.details?.type?.toLowerCase() || "";
-    const overview = job.description?.overview?.toLowerCase() || "";
-    const skills =
-      job.description?.requiredSkills?.map((s) => s.toLowerCase()).join(" ") ||
-      "";
+    const department = job.department?.toLowerCase() || "";
+    const location = job.location?.toLowerCase() || "";
+    const type = job.employment_type?.toLowerCase() || "";
+    const overview = job.job_description?.toLowerCase() || "";
+    
+    // Handle skills (they are JSON in DB)
+    const skillsArray = typeof job.required_skills === 'string' 
+      ? JSON.parse(job.required_skills || '[]') 
+      : job.required_skills || [];
+    const skills = skillsArray.map((s) => s.toLowerCase()).join(" ");
 
     return (
       jobTitle.includes(query) ||
@@ -110,15 +116,8 @@ const OpenPositions = () => {
     setIsModalOpen(true);
   };
 
-  const createSlug = (title) => {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  };
-
   const handleCopyLink = async (job) => {
-    const shareUrl = `${window.location.origin}/#/positions/${createSlug(job.job_title)}`;
+    const shareUrl = `${window.location.origin}/#/positions/${job.job_slug}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       setToastMessage("Job link copied to clipboard!");
@@ -145,7 +144,7 @@ const OpenPositions = () => {
           Current Openings
         </h1>
         <div
-          className="h-1.5 w-24 bg-brand-500 mx-auto rounded-full animate-fade-in-up"
+          className="h-1.5 w-24 bg-[#73BF44] mx-auto rounded-full animate-fade-in-up"
           style={{ animationDelay: "0.1s" }}
         ></div>
         <p
@@ -157,105 +156,92 @@ const OpenPositions = () => {
         </p>
       </div>
 
-      {/* Search Bar - COMMENTED OUT AS PER ORIGINAL */}
-
-      {/* Filters - COMMENTED OUT AS PER ORIGINAL */}
-
       {/* Job Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Loading State */}
           {isLoading && (
             <div className="col-span-1 md:col-span-2 flex justify-center py-20">
-              <Loader2 className="animate-spin text-brand-500 w-10 h-10" />
+              <Loader2 className="animate-spin text-[#73BF44] w-10 h-10" />
             </div>
           )}
 
           {/* Empty State */}
           {!isLoading && filteredJobs.length === 0 && (
             <div className="col-span-1 md:col-span-2 text-center py-10 text-slate-500">
-              No open positions found in this category.
+              No current openings found at the moment. Check back soon!
             </div>
           )}
 
-          {/* ✅ FIXED: Mapping over currentJobs instead of jobsList */}
           {!isLoading &&
-            currentJobs.map((job, index) => (
-              <div
-                key={job.id || index}
-                className="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col h-full group animate-fade-in-up relative overflow-hidden"
-                style={{ animationDelay: `${0.1 * index}s` }}
-              >
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-400 to-brand-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
+            currentJobs.map((job, index) => {
+              const skills = typeof job.required_skills === 'string' 
+                ? JSON.parse(job.required_skills || '[]') 
+                : job.required_skills || [];
+                
+              return (
+                <div
+                  key={job.uuid || index}
+                  className="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col h-full group animate-fade-in-up relative overflow-hidden"
+                  style={{ animationDelay: `${0.1 * index}s` }}
+                >
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#73BF44] to-[#62a33a] transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
 
-                <div className="flex justify-between items-start mb-6">
-                  <h3 className="text-2xl font-bold text-slate-900 group-hover:text-brand-500 transition-colors font-heading flex-1 pr-4">
-                    {job.job_title}
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleCopyLink(job)}
-                      className="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-brand-500 hover:text-white transition-all duration-300 hover:scale-110 shadow-sm hover:shadow-md"
-                      title="Copy job link"
-                    >
-                      <Copy size={18} />
-                    </button>
-                    <span
-                      className={`text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${
-                        job.details?.department === "Design"
-                          ? "bg-pink-100 text-pink-700"
-                          : job.details?.department === "Development"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-purple-100 text-purple-700"
-                      }`}
-                    >
-                      {job.details?.department}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-5 text-sm text-slate-500 font-medium mb-8">
-                  <div className="flex items-center gap-2">
-                    <MapPin size={18} className="text-brand-500" />{" "}
-                    {job.details?.location}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock size={18} className="text-brand-500" />{" "}
-                    {job.details?.experienceRange?.min === 0 &&
-                    job.details?.experienceRange?.max === 0
-                      ? "Fresher"
-                      : job.details?.experienceRange?.min +
-                        " - " +
-                        job.details?.experienceRange?.max +
-                        " Years"}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Briefcase size={18} className="text-brand-500" />{" "}
-                    {job.details?.type}
-                  </div>
-                  {job.details?.workType && (
+                  <div className="flex justify-between items-start mb-6">
+                    <h3 className="text-2xl font-bold text-slate-900 group-hover:text-[#73BF44] transition-colors font-heading flex-1 pr-4">
+                      {job.job_title}
+                    </h3>
                     <div className="flex items-center gap-2">
-                      <Building2 size={18} className="text-brand-500" />{" "}
-                      {job.details?.workType}
+                      <button
+                        onClick={() => handleCopyLink(job)}
+                        className="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-[#73BF44] hover:text-white transition-all duration-300 hover:scale-110 shadow-sm hover:shadow-md"
+                        title="Copy job link"
+                      >
+                        <Copy size={18} />
+                      </button>
+                      <span
+                        className={`text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${
+                          job.department === "Design"
+                            ? "bg-pink-100 text-pink-700"
+                            : job.department === "Development"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-purple-100 text-purple-700"
+                        }`}
+                      >
+                        {job.department}
+                      </span>
                     </div>
-                  )}
-                  {job.details?.openings && (
+                  </div>
+
+                  <div className="flex flex-wrap gap-5 text-sm text-slate-500 font-medium mb-8">
                     <div className="flex items-center gap-2">
-                      <UserPlus size={18} className="text-brand-500" />{" "}
-                      {job.details.openings} Openings
+                      <MapPin size={18} className="text-[#73BF44]" />{" "}
+                      {job.location}
                     </div>
-                  )}
-                </div>
+                    <div className="flex items-center gap-2">
+                      <Clock size={18} className="text-[#73BF44]" />{" "}
+                      {job.min_experience === 0 && job.max_experience === 0
+                        ? "Fresher"
+                        : `${job.min_experience} - ${job.max_experience} Years`}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Briefcase size={18} className="text-[#73BF44]" />{" "}
+                      {job.employment_type}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Building2 size={18} className="text-[#73BF44]" />{" "}
+                      {job.work_type}
+                    </div>
+                  </div>
 
-                <p className="text-slate-600 mb-8 flex-grow text-md leading-relaxed">
-                  {job.description?.overview?.length > 150
-                    ? job.description?.overview.slice(0, 150) + "..."
-                    : job.description?.overview}
-                </p>
+                  <p className="text-slate-600 mb-8 flex-grow text-md leading-relaxed">
+                    {job.job_description?.length > 150
+                      ? job.job_description.slice(0, 150) + "..."
+                      : job.job_description}
+                  </p>
 
-                <div className="flex flex-wrap gap-2 mb-8">
-                  {job.description?.requiredSkills &&
-                    job.description.requiredSkills.slice(0, 3).map((tag, i) => (
+                  <div className="flex flex-wrap gap-2 mb-8">
+                    {skills.slice(0, 3).map((tag, i) => (
                       <span
                         key={`${tag}-${i}`}
                         className="bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1 rounded-md border border-slate-200"
@@ -263,16 +249,17 @@ const OpenPositions = () => {
                         {tag}
                       </span>
                     ))}
-                </div>
+                  </div>
 
-                <Link
-                  to={`/positions/${createSlug(job.job_title)}`}
-                  className="w-full bg-slate-900 hover:bg-brand-500 text-white hover:text-white font-bold py-3 md:py-4 rounded-lg transition-all shadow-lg hover:shadow-brand-500/30 flex items-center justify-center gap-2 group-hover:gap-3 text-sm md:text-base"
-                >
-                  View Details & Apply <ArrowRight size={18} />
-                </Link>
-              </div>
-            ))}
+                  <Link
+                    to={`/positions/${job.job_slug}`}
+                    className="w-full bg-slate-900 hover:bg-[#73BF44] text-white hover:text-white font-bold py-3 md:py-4 rounded-lg transition-all shadow-lg hover:shadow-[#73BF44]/30 flex items-center justify-center gap-2 group-hover:gap-3 text-sm md:text-base"
+                  >
+                    View Details & Apply <ArrowRight size={18} />
+                  </Link>
+                </div>
+              );
+            })}
         </div>
 
         {/* Pagination Controls */}
@@ -284,7 +271,7 @@ const OpenPositions = () => {
               className={`p-3 rounded-full border transition-all ${
                 currentPage === 1
                   ? "text-slate-300 border-slate-200 cursor-not-allowed"
-                  : "text-slate-600 border-slate-300 hover:bg-white hover:text-brand-500 hover:border-brand-500 hover:shadow-md"
+                  : "text-slate-600 border-slate-300 hover:bg-white hover:text-[#73BF44] hover:border-[#73BF44] hover:shadow-md"
               }`}
             >
               <ChevronLeft size={20} />
@@ -298,8 +285,8 @@ const OpenPositions = () => {
                     onClick={() => handlePageChange(page)}
                     className={`w-10 h-10 rounded-full font-bold transition-all ${
                       currentPage === page
-                        ? "bg-brand-500 text-white shadow-lg shadow-brand-500/30 scale-110"
-                        : "bg-white text-slate-600 border border-slate-200 hover:border-brand-500 hover:text-brand-500"
+                        ? "bg-[#73BF44] text-white shadow-lg shadow-[#73BF44]/30 scale-110"
+                        : "bg-white text-slate-600 border border-slate-200 hover:border-[#73BF44] hover:text-[#73BF44]"
                     }`}
                   >
                     {page}
@@ -314,7 +301,7 @@ const OpenPositions = () => {
               className={`p-3 rounded-full border transition-all ${
                 currentPage === totalPages
                   ? "text-slate-300 border-slate-200 cursor-not-allowed"
-                  : "text-slate-600 border-slate-300 hover:bg-white hover:text-brand-500 hover:border-brand-500 hover:shadow-md"
+                  : "text-slate-600 border-slate-300 hover:bg-white hover:text-[#73BF44] hover:border-[#73BF44] hover:shadow-md"
               }`}
             >
               <ChevronRight size={20} />
@@ -325,7 +312,7 @@ const OpenPositions = () => {
 
       {/* General Application CTA */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
-        <div className="bg-brand-500 rounded-3xl p-12 text-center text-white shadow-2xl hover:shadow-brand-500/40 transition-shadow duration-300 relative overflow-hidden group">
+        <div className="bg-[#73BF44] rounded-3xl p-12 text-center text-white shadow-2xl hover:shadow-[#73BF44]/40 transition-shadow duration-300 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:scale-110 transition-transform duration-500"></div>
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -ml-20 -mb-20 group-hover:scale-110 transition-transform duration-500"></div>
 
@@ -342,7 +329,7 @@ const OpenPositions = () => {
           </p>
           <button
             onClick={() => openApplication()}
-            className="bg-white text-brand-700 hover:bg-brand-50 font-bold py-3 px-6 md:py-4 md:px-10 rounded-lg transition-all shadow-xl hover:scale-105 flex items-center justify-center gap-2 mx-auto relative z-10 text-base md:text-lg"
+            className="bg-white text-slate-900 hover:bg-brand-50 font-bold py-3 px-6 md:py-4 md:px-10 rounded-lg transition-all shadow-xl hover:scale-105 flex items-center justify-center gap-2 mx-auto relative z-10 text-base md:text-lg"
           >
             <Mail size={20} className="md:w-[22px] md:h-[22px]" /> Submit
             General Application
@@ -360,7 +347,7 @@ const OpenPositions = () => {
       {showToast && (
         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
           <div className="bg-slate-900 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center gap-3">
-            <Copy size={18} className="text-brand-400" />
+            <Copy size={18} className="text-[#73BF44]" />
             <span className="font-medium">{toastMessage}</span>
           </div>
         </div>

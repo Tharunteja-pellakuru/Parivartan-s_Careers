@@ -61,11 +61,13 @@ const DynamicField = ({ field, value, onChange, error }) => {
       case "text":
       case "email":
       case "phone":
+      case "tel":
       case "number":
       case "url":
         // Check for Phone type OR Label containing "Phone"/"Mobile"/"Contact"
         const isPhone =
           field.type === "phone" ||
+          field.type === "tel" ||
           /phone|mobile|contact/i.test(field.label || "") ||
           /phone|mobile|contact/i.test(field.name || "");
 

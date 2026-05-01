@@ -23,6 +23,7 @@ const AdminLayout = ({ children }) => {
     { name: "Jobs", path: "/admin/jobs", icon: <Briefcase size={18} /> },
     { name: "Applications", path: "/admin/applicants", icon: <Users size={18} /> },
     { name: "Create Job", path: "/admin/jobs/new", icon: <PlusCircle size={18} /> },
+    { name: "Add ons", path: "/admin/add-ons", icon: <Zap size={18} /> },
   ];
 
   const handleLogout = () => {
