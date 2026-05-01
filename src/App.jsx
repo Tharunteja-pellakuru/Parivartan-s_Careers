@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
+import { HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 // Layout Imports
@@ -31,6 +31,12 @@ const ScrollToTop = () => {
 };
 
 const App = () => {
+  useEffect(() => {
+    if (window.location.pathname === "/a" || window.location.pathname === "/a/") {
+      window.location.replace("/#/admin/login");
+    }
+  }, []);
+
   return (
     <HashRouter
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
@@ -41,6 +47,7 @@ const App = () => {
       <Routes>
         {/* Standalone Admin Pages */}
         <Route path="/admin/login" element={<LoginPage />} />
+        <Route path="/a" element={<Navigate to="/admin/login" replace />} />
 
         {/* Admin Routes - Checked first */}
         <Route 
