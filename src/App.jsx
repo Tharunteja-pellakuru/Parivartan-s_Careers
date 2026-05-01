@@ -32,8 +32,11 @@ const ScrollToTop = () => {
 
 const App = () => {
   useEffect(() => {
-    if (window.location.pathname === "/a" || window.location.pathname === "/a/") {
+    const path = window.location.pathname;
+    if (["/a", "/a/", "/admin", "/admin/", "/admin/login"].includes(path)) {
       window.location.replace("/#/admin/login");
+    } else if (path !== "/") {
+      window.location.replace("/#/");
     }
   }, []);
 
@@ -61,7 +64,7 @@ const App = () => {
                 <Route path="applicants" element={<Applicants />} />
                 <Route path="settings" element={<Settings />} />
                 <Route index element={<Dashboard />} />
-                <Route path="*" element={<Dashboard />} />
+                <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
               </Routes>
             </AdminLayout>
           } 
@@ -79,7 +82,7 @@ const App = () => {
                 <Route path="/positions" element={<OpenPositions />} />
                 <Route path="/positions/:slug" element={<JobDetails />} />
                 <Route path="/apply/:slug" element={<ApplyJob />} />
-                <Route path="*" element={<Home />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </MainLayout>
           } 
