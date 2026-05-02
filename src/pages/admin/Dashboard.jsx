@@ -134,32 +134,34 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [jobs, applicants] = await Promise.all([
-          api.get("/jobs"),
-          api.get("/applicants")
+        const [jobsRes, appsRes] = await Promise.all([
+          api.get("/api/jobs"),
+          api.get("/api/job-applications")
         ]);
+        
+        const jobs = jobsRes.success ? jobsRes.data : [];
+        const apps = appsRes.success ? appsRes.data : [];
         
         setStats({
           totalJobs: jobs.length,
-          activeJobs: jobs.filter(j => j.details.status?.toLowerCase() === "active").length,
-          closedJobs: jobs.filter(j => j.details.status?.toLowerCase() === "closed").length,
-          applications: applicants.length,
-          shortlisted: Math.floor(applicants.length * 0.72),
-          hired: Math.floor(applicants.length * 0.05)
+          activeJobs: jobs.filter(j => j.status?.toLowerCase() === "published").length,
+          closedJobs: jobs.filter(j => j.status?.toLowerCase() === "closed").length,
+          applications: apps.length,
+          shortlisted: apps.filter(a => a.status === "Shortlisted").length,
+          hired: apps.filter(a => a.status === "Hired").length
         });
 
-        const mockApplicants = applicants.slice(0, 8).map(app => {
-          const name = app.basicFormData?.find(f => f.id === 'full_name')?.value || 'Anonymous Candidate';
-          const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        const mappedApplicants = apps.slice(0, 8).map(app => {
+          const initials = app.applicant_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
           return {
             id: app.id,
-            name: name,
+            name: app.applicant_name,
             initials: initials,
-            role: app.jobTitle || 'Lead Designer',
-            status: 'Shortlisted'
+            role: app.job_title || 'Application Received',
+            status: app.status === "Submitted" ? "Pending" : app.status
           };
         });
-        setRecentApplicants(mockApplicants);
+        setRecentApplicants(mappedApplicants);
 
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -243,12 +245,12 @@ const Dashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        <StatCard label="Total Jobs" value={stats.totalJobs} icon={<Briefcase />} color="bg-blue-500" trend="+12%" />
-        <StatCard label="Active Jobs" value={stats.activeJobs} icon={<Zap />} color="bg-[#73BF44]" trend="+2" />
-        <StatCard label="Closed Jobs" value={stats.closedJobs} icon={<Archive />} color="bg-slate-500" trend="-5%" />
-        <StatCard label="Applications" value={stats.applications} icon={<Users />} color="bg-purple-500" trend="+18%" />
-        <StatCard label="Shortlisted" value={stats.shortlisted} icon={<Star />} color="bg-amber-500" trend="+24%" />
-        <StatCard label="Hired" value={stats.hired} icon={<Trophy />} color="bg-rose-500" trend="+1" />
+        <StatCard label="Total Jobs" value={stats.totalJobs} icon={<Briefcase />} color="bg-blue-500" />
+        <StatCard label="Active Jobs" value={stats.activeJobs} icon={<Zap />} color="bg-[#73BF44]" />
+        <StatCard label="Closed Jobs" value={stats.closedJobs} icon={<Archive />} color="bg-slate-500" />
+        <StatCard label="Applications" value={stats.applications} icon={<Users />} color="bg-purple-500" />
+        <StatCard label="Shortlisted" value={stats.shortlisted} icon={<Star />} color="bg-amber-500" />
+        <StatCard label="Hired" value={stats.hired} icon={<Trophy />} color="bg-rose-500" />
       </div>
 
       {/* Main Content Sections */}

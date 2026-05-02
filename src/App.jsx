@@ -19,6 +19,7 @@ import Dashboard from "./pages/admin/Dashboard";
 import LoginPage from "./pages/admin/Login";
 import Jobs from "./pages/admin/Jobs";
 import Applicants from "./pages/admin/Applicants";
+import ApplicantDetails from "./pages/admin/ApplicantDetails";
 import CreateJob from "./pages/admin/CreateJob";
 import Settings from "./pages/admin/Settings";
 import AddOns from "./pages/admin/AddOns";
@@ -64,6 +65,7 @@ const App = () => {
                 <Route path="jobs/new" element={<CreateJob />} />
                 <Route path="jobs/:uuid" element={<CreateJob />} />
                 <Route path="applicants" element={<Applicants />} />
+                <Route path="applicants/:id" element={<ApplicantDetails />} />
                 <Route path="add-ons" element={<AddOns />} />
                 <Route path="settings" element={<Settings />} />
                 <Route index element={<Dashboard />} />

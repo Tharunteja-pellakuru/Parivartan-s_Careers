@@ -11,11 +11,14 @@ import {
   Briefcase,
   Calendar,
   MoreVertical,
-  ArrowUpRight
+  ArrowUpRight,
+  Building2
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../../services/api";
+import { BASE_URL } from "../../constants";
+import CustomSelect from "../../components/common/CustomSelect";
 
 const Applicants = () => {
   const [applicants, setApplicants] = useState([]);
@@ -23,16 +26,45 @@ const Applicants = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("All");
   const [activeTab, setActiveTab] = useState("All");
+  const [departments, setDepartments] = useState(["All"]);
 
   useEffect(() => {
     fetchApplicants();
+    fetchDepartments();
   }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/api/careers/master/departments`);
+      const data = await response.json();
+      if (data.success) {
+        const deptNames = data.data.map(d => d.department_name);
+        setDepartments(["All", ...deptNames]);
+      }
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+    }
+  };
 
   const fetchApplicants = async () => {
     try {
       setLoading(true);
-      const data = await api.get("/applicants");
-      setApplicants(data);
+      const response = await api.get("/api/job-applications");
+      // Map backend data to match frontend expectations
+      const mappedData = response.data.map(app => ({
+        ...app,
+        _id: app.id,
+        name: app.applicant_name,
+        phone: app.applicant_phone,
+        email: app.applicant_email,
+        jobId: {
+          title: app.job_title,
+          category: app.job_category
+        },
+        status: app.status === "Submitted" ? "Pending" : app.status,
+        createdAt: app.created_at
+      }));
+      setApplicants(mappedData);
     } catch (error) {
       console.error("Error fetching applicants:", error);
       toast.error("Failed to load applicants");
@@ -41,7 +73,22 @@ const Applicants = () => {
     }
   };
 
-  const departments = ["All", "Design", "Development", "Marketing", "Media", "Operations"];
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this application? This action cannot be undone.")) return;
+
+    try {
+      const res = await api.delete(`/api/job-applications/delete/${id}`);
+      if (res.success) {
+        toast.success("Application deleted successfully");
+        setApplicants(prev => prev.filter(app => app._id !== id));
+      }
+    } catch (error) {
+      console.error("Delete Error:", error);
+      toast.error("Failed to delete application");
+    }
+  };
+
+
   const tabs = [
     { name: "All", count: applicants.length },
     { name: "New", count: applicants.filter(a => a.status === "Pending").length },
@@ -129,18 +176,14 @@ const Applicants = () => {
             />
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative min-w-[200px] w-full md:w-auto">
-              <select 
-                className="w-full appearance-none bg-gray-50 border border-gray-100 rounded-lg px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#73BF44]/20 transition-all cursor-pointer"
-                value={filterDepartment}
-                onChange={(e) => setFilterDepartment(e.target.value)}
-              >
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept === "All" ? "All Departments" : dept}</option>
-                ))}
-              </select>
-              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
-            </div>
+            <CustomSelect 
+              value={filterDepartment}
+              onChange={setFilterDepartment}
+              options={departments}
+              icon={Building2}
+              placeholder="All Departments"
+              className="min-w-[200px]"
+            />
           </div>
         </div>
       </div>
@@ -208,14 +251,17 @@ const Applicants = () => {
                       {app.createdAt ? new Date(app.createdAt).toLocaleDateString('en-GB') : "N/A"}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-2">
                         <Link 
                           to={`/admin/applicants/${app._id}`}
                           className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-100 rounded-lg text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
                         >
                           <Eye size={14} /> View
                         </Link>
-                        <button className="flex items-center gap-1.5 px-3 py-1.5 border border-red-50 rounded-lg text-[11px] font-bold text-red-500 hover:bg-red-50 transition-all shadow-sm">
+                        <button 
+                          onClick={() => handleDelete(app._id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 border border-red-50 rounded-lg text-[11px] font-bold text-red-500 hover:bg-red-50 transition-all shadow-sm"
+                        >
                           <Trash2 size={14} /> Delete
                         </button>
                       </div>

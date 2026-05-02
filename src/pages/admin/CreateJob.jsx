@@ -98,12 +98,50 @@ const CreateJob = () => {
           requiredSkills: typeof job.required_skills === 'string' ? JSON.parse(job.required_skills) : job.required_skills,
           niceToHaveSkills: typeof job.nice_to_have_skills === 'string' ? JSON.parse(job.nice_to_have_skills) : job.nice_to_have_skills
         });
+
+        // Fetch application fields
+        fetchApplicationFields(job.id);
       }
     } catch (error) {
       console.error("Error fetching job details:", error);
       toast.error("Failed to load job details");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchApplicationFields = async (jobId) => {
+    try {
+      const response = await fetch(`${BASE_URL}/api/job-application-fields/job/${jobId}`);
+      const data = await response.json();
+      if (data.success && data.data.length > 0) {
+        // Group fields by step
+        const stepsMap = {};
+        data.data.forEach(field => {
+          if (!stepsMap[field.step_number]) {
+            stepsMap[field.step_number] = {
+              id: field.step_number, // Use step number as ID for existing
+              name: field.step_name,
+              questions: [],
+              isEditing: false
+            };
+          }
+          stepsMap[field.step_number].questions.push({
+            id: field.id,
+            label: field.field_name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), // Best guess at label
+            type: field.field_type,
+            required: field.is_required === 1,
+            placeholder: field.placeholder_text,
+            helpText: field.helper_text,
+            options: typeof field.field_options === 'string' ? JSON.parse(field.field_options) : field.field_options
+          });
+        });
+        
+        const sortedSteps = Object.values(stepsMap).sort((a, b) => a.id - b.id);
+        setApplicationSteps(sortedSteps);
+      }
+    } catch (error) {
+      console.error("Error fetching application fields:", error);
     }
   };
 
@@ -223,7 +261,19 @@ const CreateJob = () => {
           ...s,
           questions: [
             ...s.questions,
-            { id: Date.now(), label: "New Question", type: "TEXT", required: false }
+            { 
+              id: Date.now(), 
+              label: "New Question", 
+              type: "text", 
+              required: false,
+              placeholder: "",
+              helpText: "",
+              options: [],
+              min: 0,
+              max: 100,
+              step: 1,
+              defaultValue: 0
+            }
           ]
         };
       }
@@ -322,6 +372,28 @@ const CreateJob = () => {
       const data = await response.json();
 
       if (data.success) {
+        const jobId = data.jobId;
+
+        // Sync Application Form Builder fields
+        try {
+          const syncResponse = await fetch(`${BASE_URL}/api/job-application-fields/sync`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              job_id: jobId,
+              steps: applicationSteps
+            }),
+          });
+          const syncData = await syncResponse.json();
+          if (!syncData.success) {
+            console.error("Failed to sync application fields:", syncData.message);
+          }
+        } catch (syncError) {
+          console.error("Error syncing application fields:", syncError);
+        }
+
         toast.success(isEditMode ? "Job updated successfully!" : "Job created successfully!");
         navigate("/admin/jobs");
       } else {
@@ -710,8 +782,8 @@ const CreateJob = () => {
 
               <div className="space-y-8">
                 {applicationSteps.map((step) => (
-                  <div key={step.id} className="bg-gray-50/50 rounded-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="bg-gray-100/50 px-8 py-5 border-b border-gray-100 flex justify-between items-center">
+                  <div key={step.id} className="bg-gray-50/50 rounded-2xl border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="bg-gray-100/50 px-8 py-5 border-b border-gray-100 flex justify-between items-center rounded-t-2xl">
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           {step.isEditing ? (
@@ -745,12 +817,17 @@ const CreateJob = () => {
                       )}
                     </div>
                     
-                    <div className="p-8 space-y-4">
-                      {step.questions.map((question, index) => (
-                        <div 
-                          key={question.id}
-                          className={`group relative border border-gray-100 bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all`}
-                        >
+                      <div className="p-8 space-y-4">
+                        {step.questions.map((question, index) => (
+                          <div 
+                            key={question.id}
+                            draggable
+                            onDragStart={(e) => handleAppDragStart(e, step.id, index)}
+                            onDragEnter={() => handleAppDragEnter(step.id, index)}
+                            onDragEnd={handleAppDragEnd}
+                            onDragOver={handleDragOver}
+                            className={`group relative border border-gray-100 bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all cursor-move`}
+                          >
                           <div className="grid grid-cols-12 gap-6 items-center">
                             <div className="col-span-1 flex justify-center text-gray-300">
                               <GripVertical size={20} />
@@ -759,7 +836,18 @@ const CreateJob = () => {
                               <label className="block text-[10px] font-normal text-gray-400 uppercase tracking-widest mb-1.5">Question Label</label>
                               <input 
                                 type="text" 
-                                defaultValue={question.label}
+                                value={question.label}
+                                onChange={(e) => {
+                                  setApplicationSteps(applicationSteps.map(s => {
+                                    if (s.id === step.id) {
+                                      return {
+                                        ...s,
+                                        questions: s.questions.map(q => q.id === question.id ? { ...q, label: e.target.value } : q)
+                                      };
+                                    }
+                                    return s;
+                                  }));
+                                }}
                                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-lg focus:ring-2 focus:ring-[#73BF44]/20 focus:bg-white transition-all text-sm font-bold"
                               />
                             </div>
@@ -779,7 +867,21 @@ const CreateJob = () => {
                                     return s;
                                   }));
                                 }}
-                                options={["TEXT", "LONG TEXT", "MULTIPLE CHOICE", "FILE UPLOAD"]}
+                                options={[
+                                  { label: "Text", value: "text" },
+                                  { label: "Email", value: "email" },
+                                  { label: "Number", value: "number" },
+                                  { label: "Long Text (Textarea)", value: "textarea" },
+                                  { label: "Select (Dropdown)", value: "select" },
+                                  { label: "Radio Buttons", value: "radio" },
+                                  { label: "Checkboxes", value: "checkbox" },
+                                  { label: "File Upload", value: "file" },
+                                  { label: "Date", value: "date" },
+                                  { label: "Phone", value: "phone" },
+                                  { label: "URL", value: "url" },
+                                  { label: "Toggle", value: "toggle" },
+                                  { label: "Range", value: "range" }
+                                ]}
                                 placeholder="Select Type"
                               />
                             </div>
@@ -787,7 +889,7 @@ const CreateJob = () => {
                               <label className="flex items-center gap-2 cursor-pointer group/check">
                                 <input 
                                   type="checkbox" 
-                                  defaultChecked={question.required} 
+                                  checked={question.required} 
                                   onChange={(e) => {
                                     setApplicationSteps(applicationSteps.map(s => {
                                       if (s.id === step.id) {
@@ -811,6 +913,244 @@ const CreateJob = () => {
                               >
                                 <Trash2 size={18} />
                               </button>
+                            </div>
+
+                            {/* Additional Question Settings */}
+                            <div className="col-span-1"></div>
+                            <div className="col-span-11 grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                              {/* Placeholder Text - Hidden for types that don't support it */}
+                              {!['select', 'radio', 'checkbox', 'range', 'toggle', 'date', 'file'].includes(question.type) && (
+                                <div>
+                                  <label className="block text-[10px] font-normal text-gray-400 uppercase tracking-widest mb-1.5">Placeholder Text</label>
+                                  <input 
+                                    type="text" 
+                                    value={question.placeholder || ""}
+                                    onChange={(e) => {
+                                      setApplicationSteps(applicationSteps.map(s => {
+                                        if (s.id === step.id) {
+                                          return {
+                                            ...s,
+                                            questions: s.questions.map(q => q.id === question.id ? { ...q, placeholder: e.target.value } : q)
+                                          };
+                                        }
+                                        return s;
+                                      }));
+                                    }}
+                                    placeholder="e.g. Enter your link here"
+                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-lg focus:ring-2 focus:ring-[#73BF44]/20 focus:bg-white transition-all text-xs font-medium"
+                                  />
+                                </div>
+                              )}
+                              <div>
+                                <label className="block text-[10px] font-normal text-gray-400 uppercase tracking-widest mb-1.5">Helper Text</label>
+                                <input 
+                                  type="text" 
+                                  value={question.helpText || ""}
+                                  onChange={(e) => {
+                                    setApplicationSteps(applicationSteps.map(s => {
+                                      if (s.id === step.id) {
+                                        return {
+                                          ...s,
+                                          questions: s.questions.map(q => q.id === question.id ? { ...q, helpText: e.target.value } : q)
+                                        };
+                                      }
+                                      return s;
+                                    }));
+                                  }}
+                                  placeholder="e.g. Please provide a valid LinkedIn URL"
+                                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-lg focus:ring-2 focus:ring-[#73BF44]/20 focus:bg-white transition-all text-xs font-medium"
+                                />
+                              </div>
+
+                              {/* Field Options for Select, Radio, Checkbox */}
+                              {(['select', 'radio', 'checkbox'].includes(question.type)) && (
+                                <div className="col-span-2 space-y-4">
+                                  <div className="flex justify-between items-center">
+                                    <label className="block text-[10px] font-normal text-gray-400 uppercase tracking-widest">Options</label>
+                                    <button 
+                                      onClick={() => {
+                                        setApplicationSteps(applicationSteps.map(s => {
+                                          if (s.id === step.id) {
+                                            return {
+                                              ...s,
+                                              questions: s.questions.map(q => q.id === question.id ? { 
+                                                ...q, 
+                                                options: [...(q.options || []), { label: "", value: "" }] 
+                                              } : q)
+                                            };
+                                          }
+                                          return s;
+                                        }));
+                                      }}
+                                      className="flex items-center gap-1.5 px-3 py-1 bg-[#73BF44]/10 text-[#73BF44] rounded-lg font-bold text-[10px] hover:bg-[#73BF44]/20 transition-all"
+                                    >
+                                      <Plus size={12} /> Add Option
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="space-y-3">
+                                    {(question.options || []).map((option, optIdx) => (
+                                      <div key={optIdx} className="grid grid-cols-2 gap-4 items-end bg-gray-50/50 p-4 rounded-xl border border-gray-100 group/opt">
+                                        <div>
+                                          <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1.5">Label</label>
+                                          <input 
+                                            type="text"
+                                            value={option.label}
+                                            onChange={(e) => {
+                                              const newLabel = e.target.value;
+                                              const newValue = newLabel; // Match label exactly
+                                              setApplicationSteps(applicationSteps.map(s => {
+                                                if (s.id === step.id) {
+                                                  return {
+                                                    ...s,
+                                                    questions: s.questions.map(q => q.id === question.id ? { 
+                                                      ...q, 
+                                                      options: q.options.map((o, i) => i === optIdx ? { ...o, label: newLabel, value: newValue } : o) 
+                                                    } : q)
+                                                  };
+                                                }
+                                                return s;
+                                              }));
+                                            }}
+                                            className="w-full px-3 py-2 bg-white border border-gray-100 rounded-lg text-xs font-medium focus:ring-1 focus:ring-[#73BF44]/30 outline-none"
+                                            placeholder="e.g. Yes"
+                                          />
+                                        </div>
+                                        <div className="relative">
+                                          <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1.5">Value</label>
+                                          <input 
+                                            type="text"
+                                            value={option.value}
+                                            onChange={(e) => {
+                                              const newValue = e.target.value;
+                                              setApplicationSteps(applicationSteps.map(s => {
+                                                if (s.id === step.id) {
+                                                  return {
+                                                    ...s,
+                                                    questions: s.questions.map(q => q.id === question.id ? { 
+                                                      ...q, 
+                                                      options: q.options.map((o, i) => i === optIdx ? { ...o, value: newValue } : o) 
+                                                    } : q)
+                                                  };
+                                                }
+                                                return s;
+                                              }));
+                                            }}
+                                            className="w-full px-3 py-2 bg-white border border-gray-100 rounded-lg text-xs font-mono text-gray-900 focus:ring-1 focus:ring-[#73BF44]/30 outline-none"
+                                            placeholder="value"
+                                          />
+                                          <button 
+                                            onClick={() => {
+                                              setApplicationSteps(applicationSteps.map(s => {
+                                                if (s.id === step.id) {
+                                                  return {
+                                                    ...s,
+                                                    questions: s.questions.map(q => q.id === question.id ? { 
+                                                      ...q, 
+                                                      options: q.options.filter((_, i) => i !== optIdx) 
+                                                    } : q)
+                                                  };
+                                                }
+                                                return s;
+                                              }));
+                                            }}
+                                            className="absolute -right-2 -top-2 w-6 h-6 bg-white shadow-md border border-gray-100 text-gray-300 hover:text-red-500 rounded-full flex items-center justify-center transition-all opacity-0 group-hover/opt:opacity-100"
+                                          >
+                                            <X size={12} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {(question.options || []).length === 0 && (
+                                      <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-xl text-gray-400 text-[10px] font-medium italic">
+                                        No options added yet. Click "Add Option" to begin.
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Range Settings */}
+                              {question.type === 'range' && (
+                                <div className="col-span-2 grid grid-cols-4 gap-4 bg-[#73BF44]/5 p-6 rounded-2xl border border-[#73BF44]/10">
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Min Value</label>
+                                    <input 
+                                      type="number"
+                                      value={question.min}
+                                      onChange={(e) => {
+                                        setApplicationSteps(applicationSteps.map(s => {
+                                          if (s.id === step.id) {
+                                            return {
+                                              ...s,
+                                              questions: s.questions.map(q => q.id === question.id ? { ...q, min: parseInt(e.target.value) } : q)
+                                            };
+                                          }
+                                          return s;
+                                        }));
+                                      }}
+                                      className="w-full px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold text-[#73BF44]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Max Value</label>
+                                    <input 
+                                      type="number"
+                                      value={question.max}
+                                      onChange={(e) => {
+                                        setApplicationSteps(applicationSteps.map(s => {
+                                          if (s.id === step.id) {
+                                            return {
+                                              ...s,
+                                              questions: s.questions.map(q => q.id === question.id ? { ...q, max: parseInt(e.target.value) } : q)
+                                            };
+                                          }
+                                          return s;
+                                        }));
+                                      }}
+                                      className="w-full px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold text-[#73BF44]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Step</label>
+                                    <input 
+                                      type="number"
+                                      value={question.step}
+                                      onChange={(e) => {
+                                        setApplicationSteps(applicationSteps.map(s => {
+                                          if (s.id === step.id) {
+                                            return {
+                                              ...s,
+                                              questions: s.questions.map(q => q.id === question.id ? { ...q, step: parseInt(e.target.value) } : q)
+                                            };
+                                          }
+                                          return s;
+                                        }));
+                                      }}
+                                      className="w-full px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold text-[#73BF44]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Default</label>
+                                    <input 
+                                      type="number"
+                                      value={question.defaultValue}
+                                      onChange={(e) => {
+                                        setApplicationSteps(applicationSteps.map(s => {
+                                          if (s.id === step.id) {
+                                            return {
+                                              ...s,
+                                              questions: s.questions.map(q => q.id === question.id ? { ...q, defaultValue: parseInt(e.target.value) } : q)
+                                            };
+                                          }
+                                          return s;
+                                        }));
+                                      }}
+                                      className="w-full px-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold text-[#73BF44]"
+                                    />
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

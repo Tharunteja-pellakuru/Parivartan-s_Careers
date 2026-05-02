@@ -74,7 +74,7 @@ const DynamicField = ({ field, value, onChange, error }) => {
         return (
           <div className="relative group">
             <input
-              type={isPhone ? "tel" : field.type}
+              type={isPhone ? "tel" : (field.type === "url" ? "text" : field.type)}
               value={value || ""}
               onChange={(e) => {
                 let val = e.target.value;
@@ -108,7 +108,7 @@ const DynamicField = ({ field, value, onChange, error }) => {
                   e.preventDefault();
                 }
               }}
-              className={`w-full px-5 py-4 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all duration-300 text-slate-900 placeholder:text-slate-400 ${error ? "border-red-500 bg-red-50/10" : "border-slate-200 hover:border-slate-300"}`}
+              className={`w-full px-5 py-4 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all duration-300 text-slate-900 placeholder:text-slate-400 ${field.type === 'url' ? 'pr-12' : ''} ${error ? "border-red-500 bg-red-50/10" : "border-slate-200 hover:border-slate-300"}`}
             />
             {field.type === "url" && (
               <LinkIcon
@@ -139,11 +139,15 @@ const DynamicField = ({ field, value, onChange, error }) => {
               className={`w-full px-5 py-4 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none appearance-none transition-all duration-300 text-slate-900 cursor-pointer ${error ? "border-red-500 bg-red-50/10" : "border-slate-200 hover:border-slate-300"}`}
             >
               <option value="">Select an option...</option>
-              {field.options?.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
+              {field.options?.map((opt, i) => {
+                const optLabel = typeof opt === 'object' ? opt.label : opt;
+                const optValue = typeof opt === 'object' ? opt.value : opt;
+                return (
+                  <option key={i} value={optValue}>
+                    {optLabel}
+                  </option>
+                );
+              })}
             </select>
             <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-focus-within:text-brand-500 transition-colors">
               <ChevronDown size={20} />
@@ -154,73 +158,85 @@ const DynamicField = ({ field, value, onChange, error }) => {
       case "radio":
         return (
           <div className="space-y-3">
-            {field.options?.map((opt) => (
-              <label
-                key={opt}
-                className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-300 group ${value === opt ? "border-brand-500 bg-brand-50/50 shadow-sm" : "border-slate-200 hover:bg-slate-50 hover:border-slate-300"}`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-4 transition-colors ${value === opt ? "border-brand-500" : "border-slate-300 group-hover:border-slate-400"}`}
+            {field.options?.map((opt, i) => {
+              const optLabel = typeof opt === 'object' ? opt.label : opt;
+              const optValue = typeof opt === 'object' ? opt.value : opt;
+              const isSelected = value === optValue;
+              
+              return (
+                <label
+                  key={i}
+                  className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-300 group ${isSelected ? "border-brand-500 bg-brand-50/50 shadow-sm" : "border-slate-200 hover:bg-slate-50 hover:border-slate-300"}`}
                 >
-                  {value === opt && (
-                    <div className="w-2.5 h-2.5 bg-brand-500 rounded-full" />
-                  )}
-                </div>
-                <input
-                  type="radio"
-                  name={field.id}
-                  value={opt}
-                  checked={value === opt}
-                  onChange={(e) => onChange(field.id, e.target.value)}
-                  className="hidden"
-                />
-                <span
-                  className={`font-medium transition-colors ${value === opt ? "text-brand-900" : "text-slate-700"}`}
-                >
-                  {opt}
-                </span>
-              </label>
-            ))}
+                  <div
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-4 transition-colors ${isSelected ? "border-brand-500" : "border-slate-300 group-hover:border-slate-400"}`}
+                  >
+                    {isSelected && (
+                      <div className="w-2.5 h-2.5 bg-brand-500 rounded-full" />
+                    )}
+                  </div>
+                  <input
+                    type="radio"
+                    name={field.id}
+                    value={optValue}
+                    checked={isSelected}
+                    onChange={(e) => onChange(field.id, e.target.value)}
+                    className="hidden"
+                  />
+                  <span
+                    className={`font-medium transition-colors ${isSelected ? "text-brand-900" : "text-slate-700"}`}
+                  >
+                    {optLabel}
+                  </span>
+                </label>
+              );
+            })}
           </div>
         );
 
       case "checkbox":
         const selectedChecks = Array.isArray(value) ? value : [];
-        const handleCheck = (opt) => {
-          if (selectedChecks.includes(opt))
+        const handleCheck = (optValue) => {
+          if (selectedChecks.includes(optValue))
             onChange(
               field.id,
-              selectedChecks.filter((i) => i !== opt),
+              selectedChecks.filter((i) => i !== optValue),
             );
-          else onChange(field.id, [...selectedChecks, opt]);
+          else onChange(field.id, [...selectedChecks, optValue]);
         };
         return (
           <div className="space-y-3">
-            {field.options?.map((opt) => (
-              <label
-                key={opt}
-                className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-300 group ${selectedChecks.includes(opt) ? "border-brand-500 bg-brand-50/50 shadow-sm" : "border-slate-200 hover:bg-slate-50 hover:border-slate-300"}`}
-              >
-                <div
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-4 transition-colors ${selectedChecks.includes(opt) ? "bg-brand-500 border-brand-500" : "border-slate-300 group-hover:border-slate-400"}`}
+            {field.options?.map((opt, i) => {
+              const optLabel = typeof opt === 'object' ? opt.label : opt;
+              const optValue = typeof opt === 'object' ? opt.value : opt;
+              const isChecked = selectedChecks.includes(optValue);
+
+              return (
+                <label
+                  key={i}
+                  className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-300 group ${isChecked ? "border-brand-500 bg-brand-50/50 shadow-sm" : "border-slate-200 hover:bg-slate-50 hover:border-slate-300"}`}
                 >
-                  {selectedChecks.includes(opt) && (
-                    <Check size={14} className="text-white" />
-                  )}
-                </div>
-                <input
-                  type="checkbox"
-                  checked={selectedChecks.includes(opt)}
-                  onChange={() => handleCheck(opt)}
-                  className="hidden"
-                />
-                <span
-                  className={`font-medium transition-colors ${selectedChecks.includes(opt) ? "text-brand-900" : "text-slate-700"}`}
-                >
-                  {opt}
-                </span>
-              </label>
-            ))}
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-4 transition-colors ${isChecked ? "bg-brand-500 border-brand-500" : "border-slate-300 group-hover:border-slate-400"}`}
+                  >
+                    {isChecked && (
+                      <Check size={14} className="text-white" />
+                    )}
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => handleCheck(optValue)}
+                    className="hidden"
+                  />
+                  <span
+                    className={`font-medium transition-colors ${isChecked ? "text-brand-900" : "text-slate-700"}`}
+                  >
+                    {optLabel}
+                  </span>
+                </label>
+              );
+            })}
           </div>
         );
 
