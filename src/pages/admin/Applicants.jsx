@@ -59,9 +59,9 @@ const Applicants = () => {
         email: app.applicant_email,
         jobId: {
           title: app.job_title,
-          category: app.job_category
+          category: app.job_category,
+          department: app.department
         },
-        status: app.status === "Submitted" ? "Pending" : app.status,
         createdAt: app.created_at
       }));
       setApplicants(mappedData);
@@ -88,13 +88,12 @@ const Applicants = () => {
     }
   };
 
-
   const tabs = [
     { name: "All", count: applicants.length },
-    { name: "New", count: applicants.filter(a => a.status === "Pending").length },
-    { name: "Shortlisted", count: applicants.filter(a => a.status === "Shortlisted").length },
+    { name: "New", count: 0 },
+    { name: "Shortlisted", count: 0 },
     { name: "Hold", count: 0 },
-    { name: "Rejected", count: applicants.filter(a => a.status === "Rejected").length },
+    { name: "Rejected", count: 0 },
     { name: "Hired", count: 0 },
   ];
 
@@ -102,28 +101,10 @@ const Applicants = () => {
     const matchesSearch = app.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           app.jobId?.title?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDept = filterDepartment === "All" || app.jobId?.category === filterDepartment;
-    const matchesTab = activeTab === "All" || 
-                       (activeTab === "New" && app.status === "Pending") ||
-                       (activeTab === "Shortlisted" && app.status === "Shortlisted") ||
-                       (activeTab === "Rejected" && app.status === "Rejected");
+    const matchesTab = activeTab === "All";
     return matchesSearch && matchesDept && matchesTab;
   });
 
-  // Helper for progress bar
-  const getStageProgress = (status) => {
-    switch(status) {
-      case "Pending": return "10%";
-      case "Shortlisted": return "45%";
-      case "Hired": return "100%";
-      case "Rejected": return "100%";
-      default: return "5%";
-    }
-  };
-
-  const getStageColor = (status) => {
-    if (status === "Rejected") return "bg-red-400";
-    return "bg-[#73BF44]";
-  };
 
   return (
     <div className="flex-1 flex flex-col space-y-6 pb-8 animate-in fade-in slide-in-from-bottom-2 duration-500 font-['Inter']">
@@ -196,8 +177,7 @@ const Applicants = () => {
               <tr>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Candidate</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Job Applied</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Current Stage</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Stage Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Department</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Date</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest text-right">Action</th>
               </tr>
@@ -222,29 +202,8 @@ const Applicants = () => {
                       <div className="text-sm font-semibold text-gray-700">{app.jobId?.title || "Unknown Job"}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="w-full max-w-[150px]">
-                        <div className="flex justify-between items-center mb-1.5">
-                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">
-                            {app.status === "Pending" ? "Initial Review" : app.status}
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-1000 ${getStageColor(app.status)}`}
-                            style={{ width: getStageProgress(app.status) }}
-                          ></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                        app.status === "Pending" 
-                          ? "bg-blue-50 text-blue-600 border-blue-100" 
-                          : app.status === "Shortlisted"
-                          ? "bg-green-50 text-green-600 border-green-100"
-                          : "bg-red-50 text-red-600 border-red-100"
-                      }`}>
-                        {app.status === "Pending" ? "Pending" : app.status}
+                      <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] font-bold uppercase tracking-wider border border-gray-100">
+                        {app.jobId?.department || "General"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 font-medium font-mono">

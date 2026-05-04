@@ -149,20 +149,6 @@ const ApplicantDetails = () => {
     }
   };
 
-  const updateStatus = async (newStatus) => {
-    try {
-      setUpdating(true);
-      const res = await api.put(`/api/job-applications/status/${id}`, { status: newStatus });
-      if (res.success) {
-        toast.success(`Application marked as ${newStatus}`);
-        fetchDetails();
-      }
-    } catch (error) {
-      toast.error("Failed to update status");
-    } finally {
-      setUpdating(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -210,13 +196,6 @@ const ApplicantDetails = () => {
               <User className="text-[#73BF44]" size={32} />
             </div>
             <h2 className="text-xl font-bold text-gray-900">{application.applicant_name}</h2>
-            <span className={`inline-block mt-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-              application.status === "Submitted" ? "bg-blue-50 text-blue-600" :
-              application.status === "Shortlisted" ? "bg-green-50 text-green-600" :
-              "bg-red-50 text-red-600"
-            }`}>
-              {application.status}
-            </span>
             
             <div className="mt-8 space-y-4 text-left border-t border-gray-50 pt-8">
               <div className="flex items-center gap-4">
@@ -259,15 +238,6 @@ const ApplicantDetails = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-orange-50 text-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Activity size={18} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Current Status</p>
-                  <p className="text-sm font-bold text-gray-700">{application.status}</p>
-                </div>
-              </div>
 
               <div className="mt-8 pt-8 border-t border-gray-50 space-y-3">
                 <button 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   Briefcase, 
   Zap, 
@@ -80,30 +81,32 @@ const ApplicationChart = () => {
   );
 };
 
-const RecentApplications = ({ applicants }) => (
+const RecentApplications = ({ applicants, navigate }) => (
   <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
     <div className="p-5 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
       <h2 className="text-lg font-bold text-gray-900">Recent Applications</h2>
-      <button className="text-[#73BF44] text-xs font-bold uppercase tracking-widest hover:underline flex items-center gap-1">
+      <Link 
+        to="/admin/applicants"
+        className="text-[#73BF44] text-xs font-bold uppercase tracking-widest hover:underline flex items-center gap-1"
+      >
         View All <ChevronRight size={14} />
-      </button>
+      </Link>
     </div>
     <div className="flex-1 overflow-y-auto no-scrollbar">
       {applicants.length > 0 ? (
         <div className="divide-y divide-gray-50">
           {applicants.map((app, i) => (
-            <div key={i} className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-all cursor-pointer group">
+            <div 
+              key={i} 
+              onClick={() => navigate(`/admin/applicants/${app.id}`)}
+              className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-all cursor-pointer group"
+            >
               <div className="w-10 h-10 rounded-full bg-[#73BF44]/10 border-2 border-white shadow-sm flex items-center justify-center text-[#73BF44] font-bold text-xs group-hover:scale-110 transition-transform">
                 {app.initials}
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="text-xs font-bold text-gray-900 truncate group-hover:text-[#73BF44] transition-colors">{app.name}</h4>
                 <p className="text-[10px] text-gray-500 font-medium truncate">{app.role}</p>
-              </div>
-              <div className="text-right">
-                <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-green-50 text-green-600 border border-green-100">
-                  {app.status}
-                </span>
               </div>
             </div>
           ))}
@@ -119,6 +122,7 @@ const RecentApplications = ({ applicants }) => (
 );
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalJobs: 0,
     activeJobs: 0,
@@ -147,8 +151,8 @@ const Dashboard = () => {
           activeJobs: jobs.filter(j => j.status?.toLowerCase() === "published").length,
           closedJobs: jobs.filter(j => j.status?.toLowerCase() === "closed").length,
           applications: apps.length,
-          shortlisted: apps.filter(a => a.status === "Shortlisted").length,
-          hired: apps.filter(a => a.status === "Hired").length
+          shortlisted: 0, // Column was removed, so this is now 0
+          hired: 0 // Column was removed, so this is now 0
         });
 
         const mappedApplicants = apps.slice(0, 8).map(app => {
@@ -157,8 +161,7 @@ const Dashboard = () => {
             id: app.id,
             name: app.applicant_name,
             initials: initials,
-            role: app.job_title || 'Application Received',
-            status: app.status === "Submitted" ? "Pending" : app.status
+            role: app.job_title || 'Application Received'
           };
         });
         setRecentApplicants(mappedApplicants);
@@ -259,7 +262,7 @@ const Dashboard = () => {
           <ApplicationChart />
         </div>
         <div className="lg:col-span-2">
-          <RecentApplications applicants={recentApplicants} />
+          <RecentApplications applicants={recentApplicants} navigate={navigate} />
         </div>
       </div>
 

@@ -217,45 +217,47 @@ const ApplyJob = () => {
     const loadingToast = toast.loading("Submitting application...");
 
     try {
-      // Structure the data for the new backend
-      const basicInfo = {};
+      const formDataToSend = new FormData();
       const answers = [];
 
       steps.forEach(step => {
         step.fields.forEach(field => {
           const val = formData[field.id];
-          
-          // Map basic info fields
-          if (field.name === 'full_name' || field.label === 'Full Name') basicInfo.applicant_name = val;
-          if (field.name === 'email' || field.label === 'Email') basicInfo.applicant_email = val;
-          if (field.name === 'phone_number' || field.label === 'Phone Number') basicInfo.applicant_phone = val;
-          if (field.name === 'resume' || field.label === 'Resume') basicInfo.resume_file = val?.name || val;
+          if (!val) return;
 
-          // Add to answers array for custom fields (including basic ones for record)
-          if (field.id.toString().startsWith('custom_')) {
-            answers.push({
-              field_id: field.id.replace('custom_', ''),
-              field_value: typeof val === 'object' ? JSON.stringify(val) : val
-            });
+          // Map basic info fields
+          if (field.name === 'full_name' || field.label === 'Full Name') {
+            formDataToSend.append('applicant_name', val);
+          } else if (field.name === 'email' || field.label === 'Email') {
+            formDataToSend.append('applicant_email', val);
+          } else if (field.name === 'phone_number' || field.label === 'Phone Number') {
+            formDataToSend.append('applicant_phone', val);
+          } else if (field.name === 'resume' || field.label === 'Resume') {
+            formDataToSend.append('resume_file', val);
+          } else if (field.id.toString().startsWith('custom_')) {
+            // Handle custom fields
+            const fieldId = field.id.replace('custom_', '');
+            
+            if (field.type === 'file' && val instanceof File) {
+              // For file fields, we send them as separate fields where the key is the field_id
+              formDataToSend.append(fieldId, val);
+            } else {
+              // For other fields, add to the answers array
+              answers.push({
+                field_id: fieldId,
+                field_value: typeof val === 'object' ? JSON.stringify(val) : val
+              });
+            }
           }
         });
       });
 
-      const payload = {
-        job_id: job.id,
-        applicant_name: basicInfo.applicant_name,
-        applicant_email: basicInfo.applicant_email,
-        applicant_phone: basicInfo.applicant_phone,
-        resume_file: basicInfo.resume_file,
-        answers: answers
-      };
+      formDataToSend.append('job_id', job.id);
+      formDataToSend.append('answers', JSON.stringify(answers));
 
       const response = await fetch(`${BASE_URL}/api/job-applications/create`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        body: formDataToSend,
       });
 
       const result = await response.json();

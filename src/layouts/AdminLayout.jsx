@@ -36,7 +36,7 @@ const AdminLayout = ({ children }) => {
       {/* Sidebar */}
       <aside 
         className={`${
-          isSidebarOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0 md:w-24"
+          isSidebarOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0 md:w-24"
         } fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-100 transition-all duration-500 ease-in-out md:relative flex flex-col font-['Inter']`}
       >
         {/* Logo Section */}
