@@ -56,10 +56,13 @@ const ApplicantDetails = () => {
   
   // Form States
   const [stageForm, setStageForm] = useState({
-    stage: "Technical Test",
-    status: "Pending",
-    notify: true
+    stage_id: "",
+    status_id: "",
+    notify:             
   });
+  
+  const [hiringStages, setHiringStages] = useState([]);
+  const [hiringStatuses, setHiringStatuses] = useState([]);
   
   const [interviewForm, setInterviewForm] = useState({
     date: "",
@@ -71,32 +74,35 @@ const ApplicantDetails = () => {
     notify: true
   });
 
-  const HIRING_STAGES = [
-    "Application received",
-    "Resume screening",
-    "Technical test",
-    "Technical interview",
-    "Managerial interview",
-    "HR final round",
-    "Offer preparation",
-    "Offer issued",
-    "Offer accepted",
-    "Joined",
-    "Rejected"
-  ];
+  useEffect(() => {
+    fetchHiringStages();
+  }, []);
 
-  const STAGE_STATUS_MAP = {
-    "Application received": ["Pending", "Shortlisted", "Rejected", "On Hold"],
-    "Resume screening": ["Pending", "Shortlisted", "Rejected", "On Hold"],
-    "Technical test": ["Pending", "In Progress", "Completed", "Cleared", "Failed", "Rejected", "On Hold"],
-    "Technical interview": ["Pending", "In Progress", "Completed", "Cleared", "Failed", "Rejected", "On Hold"],
-    "Managerial interview": ["Pending", "In Progress", "Completed", "Cleared", "Failed", "Rejected", "On Hold"],
-    "HR final round": ["Pending", "In Progress", "Completed", "Cleared", "Failed", "Rejected", "On Hold"],
-    "Offer preparation": ["Pending", "In Progress", "Completed", "On Hold", "Rejected"],
-    "Offer issued": ["Pending", "Completed", "Rejected", "On Hold"],
-    "Offer accepted": ["Completed", "Rejected", "On Hold"],
-    "Joined": ["Completed"],
-    "Rejected": ["Rejected"]
+  const fetchHiringStages = async () => {
+    try {
+      const res = await api.get("/api/careers/master/hiring-stages");
+      if (res.success) {
+        setHiringStages(res.data.map(s => ({ label: s.name, value: s.id })));
+      }
+    } catch (error) {
+      console.error("Error fetching hiring stages:", error);
+    }
+  };
+
+  const fetchStatusesByStage = async (stageId) => {
+    try {
+      const res = await api.get(`/api/careers/master/status-by-stage?stage_id=${stageId}`);
+      if (res.success) {
+        setHiringStatuses(res.data.map(s => ({ label: s.name, value: s.id })));
+      }
+    } catch (error) {
+      console.error("Error fetching statuses:", error);
+    }
+  };
+
+  const handleStageChange = (stageId) => {
+    setStageForm({ ...stageForm, stage_id: stageId, status_id: "" });
+    fetchStatusesByStage(stageId);
   };
 
   const getStageIcon = (stage) => {
@@ -140,12 +146,46 @@ const ApplicantDetails = () => {
       const res = await api.get(`/api/job-applications/${id}`);
       if (res.success) {
         setData(res);
+        setStageForm({
+          stage_id: res.application.current_stage_id || "",
+          status_id: res.application.current_status_id || "",
+          notify: true
+        });
+        if (res.application.current_stage_id) {
+          fetchStatusesByStage(res.application.current_stage_id);
+        }
       }
     } catch (error) {
       console.error("Error fetching applicant details:", error);
       toast.error("Failed to load applicant details");
     } finally {
       setLoading(false);
+    }
+  };
+
+
+  const handleUpdateStage = async () => {
+    try {
+      if (!stageForm.stage_id || !stageForm.status_id) {
+        toast.error("Please select both stage and status");
+        return;
+      }
+      setUpdating(true);
+      const res = await api.put(`/api/job-applications/update-stage/${id}`, {
+        stage_id: stageForm.stage_id,
+        status_id: stageForm.status_id,
+        notify: stageForm.notify
+      });
+      if (res.success) {
+        toast.success("Stage updated successfully");
+        setShowStageModal(false);
+        fetchDetails();
+      }
+    } catch (error) {
+      console.error("Error updating stage:", error);
+      toast.error("Failed to update stage");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -234,7 +274,17 @@ const ApplicantDetails = () => {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Hiring Stage</p>
-                  <p className="text-sm font-bold text-gray-700">{application.stage || "Technical Test"}</p>
+                  <p className="text-sm font-bold text-gray-700">{application.stage_name || "Application Submission"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-purple-50 text-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Activity size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Hiring Status</p>
+                  <p className="text-sm font-bold text-gray-700">{application.status_name || "Pending"}</p>
                 </div>
               </div>
 
@@ -325,26 +375,24 @@ const ApplicantDetails = () => {
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Select Stage</label>
                 <CustomSelect 
-                  value={stageForm.stage}
-                  onChange={(val) => setStageForm({
-                    ...stageForm, 
-                    stage: val,
-                    status: STAGE_STATUS_MAP[val][0]
-                  })}
-                  options={HIRING_STAGES}
-                  icon={getStageIcon(stageForm.stage)}
+                  value={stageForm.stage_id}
+                  onChange={handleStageChange}
+                  options={hiringStages}
+                  icon={Layers}
                   variant="white"
+                  placeholder="Select Stage"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Select Status</label>
                 <CustomSelect 
-                  value={stageForm.status}
-                  onChange={(val) => setStageForm({...stageForm, status: val})}
-                  options={STAGE_STATUS_MAP[stageForm.stage] || ["Pending"]}
-                  icon={getStatusIcon(stageForm.status)}
+                  value={stageForm.status_id}
+                  onChange={(val) => setStageForm({...stageForm, status_id: val})}
+                  options={hiringStatuses}
+                  icon={Activity}
                   variant="white"
+                  placeholder={stageForm.stage_id ? "Select Status" : "Select Stage First"}
                 />
               </div>
 
@@ -373,9 +421,11 @@ const ApplicantDetails = () => {
                 Cancel
               </button>
               <button 
-                className="flex-1 px-6 py-3 bg-[#73BF44] text-white rounded-xl text-sm font-bold hover:bg-[#62a33a] shadow-lg shadow-[#73BF44]/20 transition-all flex items-center justify-center gap-2"
+                onClick={handleUpdateStage}
+                disabled={updating}
+                className="flex-1 px-6 py-3 bg-[#73BF44] text-white rounded-xl text-sm font-bold hover:bg-[#62a33a] shadow-lg shadow-[#73BF44]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <CheckCircle2 size={18} /> Update Stage
+                {updating ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />} Update Stage
               </button>
             </div>
           </div>

@@ -37,45 +37,114 @@ const StatCard = ({ label, value, icon, color, trend }) => (
   </div>
 );
 
-const ApplicationChart = () => {
-  const days = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue'];
-  const heights = [45, 75, 50, 85, 60, 95, 70];
+const ApplicationChart = ({ applications = [] }) => {
+  const [range, setRange] = useState('7D');
+  const daysCount = range === '7D' ? 7 : 30;
+
+  const dates = [...Array(daysCount)].map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (daysCount - 1 - i));
+    return d;
+  });
+
+  const labels = dates.map(d => {
+    if (range === '7D') {
+      return d.toLocaleDateString('en-US', { weekday: 'short' });
+    } else {
+      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    }
+  });
+  
+  const counts = dates.map(d => {
+    const startOfDay = new Date(d);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(d);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    return applications.filter(app => {
+      const appDate = new Date(app.created_at);
+      return appDate >= startOfDay && appDate <= endOfDay;
+    }).length;
+  });
+
+  const totalInPeriod = counts.reduce((a, b) => a + b, 0);
+  const actualMax = Math.max(...counts);
+  const maxCount = actualMax <= 4 ? 4 : Math.ceil(actualMax / 4) * 4;
+  const heights = counts.map(c => (c / maxCount) * 100);
   
   return (
-    <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">Application Volume</h2>
-          <p className="text-sm text-gray-500">Candidates applying over the last 7 days</p>
+          <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Application Volume</h2>
+          <div className="flex items-center gap-2 mt-1">
+             <span className="flex h-2 w-2 rounded-full bg-[#73BF44] animate-pulse"></span>
+             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">{totalInPeriod} candidates last {range === '7D' ? '7 days' : '30 days'}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <select className="bg-gray-50 border-none rounded-lg text-xs font-bold text-gray-600 px-3 py-2 outline-none">
-            <option>Last 7 Days</option>
-            <option>Last 30 Days</option>
-          </select>
+          <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100">
+            <button 
+              onClick={() => setRange('7D')}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${range === '7D' ? 'bg-white shadow-sm text-[#73BF44]' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              7D
+            </button>
+            <button 
+              onClick={() => setRange('30D')}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${range === '30D' ? 'bg-white shadow-sm text-[#73BF44]' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              30D
+            </button>
+          </div>
         </div>
       </div>
       
-      <div className="relative flex-1 min-h-[200px] flex items-end justify-between gap-2 px-2">
-        {/* Grid lines */}
+      <div className="relative h-[240px] mt-2 mb-10">
+        {/* Y-Axis Grid Lines & Values */}
         <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="border-t border-gray-50 w-full h-0"></div>
+          {[4, 3, 2, 1, 0].map((i) => (
+            <div key={i} className="flex items-center gap-4 w-full h-0">
+              <span className="text-[10px] font-black text-gray-300 w-10 text-right tabular-nums">
+                {Math.round((maxCount / 4) * i)}
+              </span>
+              <div className="flex-1 border-t border-gray-100 border-dashed"></div>
+            </div>
           ))}
         </div>
         
-        {heights.map((h, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-3 group relative">
-            <div className="absolute -top-10 bg-gray-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 font-bold">
-              {Math.floor(h / 5)} Apps
+        {/* Bars Container */}
+        <div className="absolute inset-0 ml-14 flex items-end justify-between gap-1 z-10">
+          {heights.map((h, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+              {/* Tooltip */}
+              <div className="absolute -top-12 bg-gray-900 text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all transform group-hover:-translate-y-2 whitespace-nowrap z-20 font-black shadow-xl scale-90 group-hover:scale-100 origin-bottom pointer-events-none">
+                {labels[i]}: {counts[i]} {counts[i] === 1 ? 'Candidate' : 'Candidates'}
+              </div>
+              
+              {/* Bar Track Background Hover Effect */}
+              <div className={`absolute inset-x-0 bottom-0 top-0 bg-gray-50/30 rounded-lg -z-10 mx-0 opacity-0 group-hover:opacity-100 transition-opacity ${range === '30D' ? 'hidden' : ''}`}></div>
+
+              {/* The Bar */}
+              <div 
+                className={`w-full ${range === '7D' ? 'max-w-[32px]' : 'max-w-[12px]'} bg-gradient-to-t from-[#73BF44] to-[#8ad65c] rounded-t-sm transition-all duration-700 ease-out hover:brightness-110 cursor-pointer shadow-lg shadow-[#73BF44]/5 relative group-hover:scale-x-110 group-hover:shadow-[#73BF44]/20`}
+                style={{ height: `${Math.max(h, 1)}%` }}
+              >
+                {/* Count Tag visible on non-zero bars (Only for 7D) */}
+                {range === '7D' && counts[i] > 0 && (
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-black text-[#73BF44] bg-white px-2 py-0.5 rounded-full shadow-sm border border-[#73BF44]/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {counts[i]}
+                  </span>
+                )}
+              </div>
+
+              {/* Label - Filtered for 30D to prevent overlap */}
+              {(range === '7D' || i % 6 === 0 || i === daysCount - 1) && (
+                <span className="absolute -bottom-8 text-[9px] font-black text-gray-400 uppercase tracking-tighter whitespace-nowrap">{labels[i]}</span>
+              )}
             </div>
-            <div 
-              className="w-full max-w-[40px] bg-[#73BF44] rounded-t-lg transition-all duration-700 ease-out hover:bg-[#62a33a] cursor-pointer shadow-sm"
-              style={{ height: `${h}%` }}
-            ></div>
-            <span className="text-xs font-bold text-gray-400 uppercase">{days[i]}</span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -131,6 +200,7 @@ const Dashboard = () => {
     shortlisted: 0,
     hired: 0
   });
+  const [allApplications, setAllApplications] = useState([]);
   const [recentApplicants, setRecentApplicants] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -154,6 +224,8 @@ const Dashboard = () => {
           shortlisted: 0, // Column was removed, so this is now 0
           hired: 0 // Column was removed, so this is now 0
         });
+
+        setAllApplications(apps);
 
         const mappedApplicants = apps.slice(0, 8).map(app => {
           const initials = app.applicant_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -259,7 +331,7 @@ const Dashboard = () => {
       {/* Main Content Sections */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-6 min-h-0">
         <div className="lg:col-span-3">
-          <ApplicationChart />
+          <ApplicationChart applications={allApplications} />
         </div>
         <div className="lg:col-span-2">
           <RecentApplications applicants={recentApplicants} navigate={navigate} />
