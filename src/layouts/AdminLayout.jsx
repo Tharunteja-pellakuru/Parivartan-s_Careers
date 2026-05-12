@@ -10,7 +10,8 @@ import {
   ChevronRight,
   PlusCircle,
   ShieldCheck,
-  Zap
+  Zap,
+  Mail
 } from "lucide-react";
 
 const AdminLayout = ({ children }) => {
@@ -24,6 +25,7 @@ const AdminLayout = ({ children }) => {
     { name: "Applications", path: "/admin/applicants", icon: <Users size={18} /> },
     { name: "Create Job", path: "/admin/jobs/new", icon: <PlusCircle size={18} /> },
     { name: "Add ons", path: "/admin/add-ons", icon: <Zap size={18} /> },
+    { name: "Direct Submissions", path: "/admin/general-applications", icon: <Mail size={18} /> },
   ];
 
   const handleLogout = () => {

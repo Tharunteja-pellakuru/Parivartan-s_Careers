@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../../services/api";
+import { BASE_URL } from "../../constants";
 import CustomSelect from "../../components/common/CustomSelect";
 
 const ApplicantDetails = () => {
@@ -58,7 +59,7 @@ const ApplicantDetails = () => {
   const [stageForm, setStageForm] = useState({
     stage_id: "",
     status_id: "",
-    notify:             
+    notify: true
   });
   
   const [hiringStages, setHiringStages] = useState([]);
@@ -322,9 +323,14 @@ const ApplicantDetails = () => {
                     <p className="text-[10px] text-gray-400 font-medium">Uploaded File</p>
                   </div>
                 </div>
-                <button className="p-2 text-gray-400 hover:text-[#73BF44] transition-colors">
+                <a 
+                  href={`${BASE_URL}/${application.resume_file.replace(/\\/g, '/')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 text-gray-400 hover:text-[#73BF44] transition-colors"
+                >
                   <Download size={18} />
-                </button>
+                </a>
               </div>
             </div>
           )}

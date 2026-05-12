@@ -23,6 +23,8 @@ import ApplicantDetails from "./pages/admin/ApplicantDetails";
 import CreateJob from "./pages/admin/CreateJob";
 import Settings from "./pages/admin/Settings";
 import AddOns from "./pages/admin/AddOns";
+import GeneralApplications from "./pages/admin/GeneralApplications";
+import GeneralApplicationDetails from "./pages/admin/GeneralApplicationDetails";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -66,6 +68,8 @@ const App = () => {
                 <Route path="jobs/:uuid" element={<CreateJob />} />
                 <Route path="applicants" element={<Applicants />} />
                 <Route path="applicants/:id" element={<ApplicantDetails />} />
+                <Route path="general-applications" element={<GeneralApplications />} />
+                <Route path="general-applications/:uuid" element={<GeneralApplicationDetails />} />
                 <Route path="add-ons" element={<AddOns />} />
                 <Route path="settings" element={<Settings />} />
                 <Route index element={<Dashboard />} />
